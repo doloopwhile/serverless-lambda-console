@@ -1,8 +1,15 @@
 variable "name_prefix" {
-  default = "k-omoto-disposable" # TODO: remove
 }
 
 variable "tags" {
   type = map(string)
-  default = {}
 }
+
+variable "alb_subnets" {
+  type = list(string)
+}
+
+variable "lambda_functions" {
+  type = list(string)
+}
+

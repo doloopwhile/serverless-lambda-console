@@ -1,39 +1,65 @@
 resource "aws_alb" "web" {
-//  name_prefix = "k-omoto"
-  subnets = [
-    "subnet-05e5c73f14acf466f",
-    "subnet-022f569e0077232fb",
-    "subnet-09509f59c476b3643"
-  ]
+  name_prefix = var.name_prefix
+  subnets = var.alb_subnets
 }
 
 output "alb_dns_name" {
   value = aws_alb.web.dns_name
 }
-resource "aws_lb_target_group" "lambda" {
-  target_type = "lambda"
-}
 
-resource "aws_alb_listener" "web" {
+resource "aws_alb_listener" "lambda" {
   load_balancer_arn = aws_alb.web.arn
   port              = "80"
   protocol          = "HTTP"
   default_action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not found"
+      status_code  = "404"
+    }
+  }
+}
+
+data "aws_lambda_function" "app" {
+  for_each = var.lambda_functions
+  function_name = each.value
+}
+
+resource "aws_alb_target_group" "lambda" {
+  for_each = var.lambda_functions
+  target_type = "lambda"
+}
+
+resource "aws_lb_listener_rule" "static" {
+  for_each = var.lambda_functions
+  listener_arn = aws_alb_listener.lambda.arn
+  priority = 100 + count.index
+
+  action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.lambda.arn
+    target_group_arn = "${aws_alb_target_group.lambda[each.value]}"
+  }
+
+  condition {
+    path_pattern {
+      values = ["/lambda/${each.value}"]
+    }
   }
 }
 
 resource "aws_lambda_permission" "alb_lambda" {
-//  statement_id  = "AllowExecutionFromlb"
+  for_each = var.lambda_functions
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.app.function_name
+  function_name = each.value
   principal     = "elasticloadbalancing.amazonaws.com"
   source_arn    = aws_lb_target_group.lambda.arn
 }
 
 resource "aws_alb_target_group_attachment" "lambda" {
-  target_group_arn = aws_lb_target_group.lambda.arn
-  target_id        = aws_lambda_function.app.arn
-  depends_on       = [aws_lambda_permission.alb_lambda]
+  for_each = var.lambda_functions
+  target_group_arn = aws_lb_target_group.lambda[each.value].arn
+  target_id        = data.aws_lambda_function.app[each.value].arn
+  depends_on       = [aws_lambda_permission.alb_lambda[each.value]]
 }
