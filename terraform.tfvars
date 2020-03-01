@@ -7,6 +7,6 @@ alb_subnets = [
 name_prefix = "k-omoto-disposable"
 
 lambda_functions = [
-  
+  "http-sample"
 ]
 tags = {}

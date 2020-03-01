@@ -23,23 +23,23 @@ resource "aws_alb_listener" "lambda" {
 }
 
 data "aws_lambda_function" "app" {
-  for_each = var.lambda_functions
+  for_each = toset(var.lambda_functions)
   function_name = each.value
 }
 
 resource "aws_alb_target_group" "lambda" {
-  for_each = var.lambda_functions
+  for_each = toset(var.lambda_functions)
   target_type = "lambda"
 }
 
 resource "aws_lb_listener_rule" "static" {
-  for_each = var.lambda_functions
+  for_each = toset(var.lambda_functions)
   listener_arn = aws_alb_listener.lambda.arn
-  priority = 100 + count.index
+  priority = 100 + index(var.lambda_functions, each.value)
 
   action {
     type             = "forward"
-    target_group_arn = "${aws_alb_target_group.lambda[each.value]}"
+    target_group_arn = aws_alb_target_group.lambda[each.value].arn
   }
 
   condition {
@@ -50,16 +50,15 @@ resource "aws_lb_listener_rule" "static" {
 }
 
 resource "aws_lambda_permission" "alb_lambda" {
-  for_each = var.lambda_functions
+  for_each = toset(var.lambda_functions)
   action        = "lambda:InvokeFunction"
   function_name = each.value
   principal     = "elasticloadbalancing.amazonaws.com"
-  source_arn    = aws_lb_target_group.lambda.arn
+  source_arn    = aws_alb_target_group.lambda[each.value].arn
 }
 
 resource "aws_alb_target_group_attachment" "lambda" {
-  for_each = var.lambda_functions
-  target_group_arn = aws_lb_target_group.lambda[each.value].arn
+  for_each = toset(var.lambda_functions)
+  target_group_arn = aws_alb_target_group.lambda[each.value].arn
   target_id        = data.aws_lambda_function.app[each.value].arn
-  depends_on       = [aws_lambda_permission.alb_lambda[each.value]]
 }
