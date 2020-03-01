@@ -1,5 +1,6 @@
 resource "aws_alb" "web" {
   name_prefix = var.name_prefix
+  security_groups = var.alb_security_groups
   subnets = var.alb_subnets
 }
 
@@ -52,7 +53,7 @@ resource "aws_lb_listener_rule" "static" {
 resource "aws_lambda_permission" "alb_lambda" {
   for_each = toset(var.lambda_functions)
   action        = "lambda:InvokeFunction"
-  function_name = each.value
+  function_name = data.aws_lambda_function.app[each.value].arn
   principal     = "elasticloadbalancing.amazonaws.com"
   source_arn    = aws_alb_target_group.lambda[each.value].arn
 }

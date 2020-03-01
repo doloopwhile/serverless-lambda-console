@@ -4,7 +4,11 @@ alb_subnets = [
   "subnet-d01d6888"
 ]
 
-name_prefix = "k-omoto-disposable"
+alb_security_groups = [
+  "sg-03843ec06c0ab9254"
+]
+
+name_prefix = "sample" // "k-omoto-disposable"
 
 lambda_functions = [
   "http-sample"
